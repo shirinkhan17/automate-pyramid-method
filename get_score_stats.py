@@ -10,131 +10,113 @@ import operator
 import csv
 
 class Experiment:
-    def __init__(self,summary_ids,combine,metric,t,HUMAN_SCUS,HUMAN_SCORES,HUMAN_RANKINGS,HUMAN_ORDINALS):
+    def __init__(self, 
+                 summary_ids, 
+                 combine, 
+                 metric, 
+                 t, 
+                 human_scus, 
+                 human_scores, 
+                 human_rankings, 
+                 human_ordinals):
         self.combine = combine
         self.metric = metric
         self.thres = t
-        self.scus = get_scus(summary_ids,combine,metric,t)
-        self.scorelist = get_score_list(summary_ids,combine,metric,t)
-        self.ordinals = get_ordinals(summary_ids,get_summ_rankings(summary_ids,combine,metric,t))
-        self.pearson = get_pearson(np.array(HUMAN_SCORES),np.array(self.scorelist))
-        self.jaccard = np.mean(jacc_aggregate(self.scus,HUMAN_SCUS))
-        self.spearman = get_spearman(self.ordinals,HUMAN_ORDINALS)
-        self.kendallstau = get_tau(self.ordinals,HUMAN_ORDINALS)
-        self.scu_ratio = np.mean(compare_scus(self.scus,HUMAN_SCUS))
+        self.scus = get_scus(summary_ids, combine, metric, t)
+        self.scorelist = get_score_list(summary_ids, combine, metric, t)
+        self.ordinals = get_ordinals(summary_ids, get_summ_rankings(summary_ids, combine, metric, t))
+        self.pearson = get_pearson(np.array(human_scores),np.array(self.scorelist))
+        self.jaccard = np.mean(jacc_aggregate(self.scus, human_scus))
+        self.spearman = get_spearman(self.ordinals, human_ordinals)
+        self.kendallstau = get_tau(self.ordinals, human_ordinals)
+        self.scu_ratio = np.mean(compare_scus(self.scus, human_scus))
 
-def get_pearson(arraylike1,arraylike2):
-	return pearsonr(arraylike1,arraylike2)[0]
+def get_pearson(score_list1, score_list2):
+    return pearsonr(score_list1, score_list2)[0]
 
-def get_jaccard(set1,set2):
-    return float(len(set1&set2))/(len(set1)+len(set2)-len(set1&set2))
+def get_jaccard(set1, set2):
+    return float(len(set1 & set2)) / (len(set1) + len(set2) - len(set1 & set2))
 
-def jacc_aggregate(machine_scu_dict,human_scu_dict):
-    jaccard_scores = []
-    for sample in machine_scu_dict:
-        jaccard_scores.append(get_jaccard(set(machine_scu_dict[sample]),set(human_scu_dict[sample])))
-    return jaccard_scores
+def jacc_aggregate(scu_dict_1, scu_dict_2):
+    return [get_jaccard(set(scu_dict_1[sample]), set(scu_dict_2[sample])) for sample in scu_dict_1]
 
-def compare_scus(machine_scu_dict,human_scu_dict):
-	''' Returns a list of ratios, where each is the ratio for a single summary of the number of SCUs assigned by the algorithm to the number of SCUs assigned by the human annotator
-		'''
-	scu_ratios = []
-	for sample in machine_scu_dict:
-		scu_ratios.append(float(len(machine_scu_dict[sample]))/len(human_scu_dict[sample]))
-	return scu_ratios
+def compare_scus(scu_dict_1, scu_dict_2):
+    '''Return a list of ratios, where each is the ratio for a single summary of the number 
+    of SCUs assigned by the algorithm to the number of SCUs assigned by the human annotator'''
+    return [float(len(scu_dict_1[sample])) / len(scu_dict_2[sample]) for sample in scu_dict_1]  
 
-def get_spearman(machine_ordinals,HUMAN_ORDINALS):
-    ''' get_ordinals() returns a tuple of summary ranks in the order of summary_ids
-		'''
-    return spearmanr(np.array([machine_ordinals,HUMAN_ORDINALS]).T)[0]
+def get_spearman(ordinal_list1, ordinal_list2):
+    return spearmanr(np.array([ordinal_list1, ordinal_list2]).T)[0]
 
-def get_tau(a,b):
-    return kendalltau(a,b)[0]
+def get_tau(ordinal_list1, ordinal_list2):
+    return kendalltau(ordinal_list1, ordinal_list2)[0]
 
-def get_scus(summary_ids,combine,metric,t):
+def get_scus(summary_ids, combine, metric, t):
     scus = dict.fromkeys(summary_ids)
     for id in summary_ids:
         res = [i for i in coll.find({'sample':id,'combine':combine,'metric':metric,'threshold':t})]
         assert len(res) == 1, 'mongodb did not return unique doc: {}'.format(res)
-        scus[id] = coll.find_one({'sample':id,'combine':combine,'metric':metric,'threshold':t})['machine']['scus']
+        scus[id] = res[0]['machine']['scus']
     return scus
 
-def get_score_list(summary_ids,combine,metric,t):
+def get_score_list(summary_ids, combine, metric, threshold):
     # returns tuple of scores of the summaries in the order they are listed in summary_ids
     scores = []
     for id in summary_ids:
-        res = [i for i in coll.find({'sample':id,'combine':combine,'metric':metric,'threshold':t})]
+        res = [i for i in coll.find({'sample':id, 
+                                     'combine':combine, 
+                                     'metric':metric, 
+                                     'threshold':threshold})]
         assert len(res) == 1, 'mongodb did not return unique doc: {}'.format(res)
         scores.append(res[0]['machine']['weightedsum'])
-    return tuple(scores)
+    return scores
 
-def get_summ_rankings(summary_ids,combine,metric,t):
+def get_summ_rankings(summary_ids, combine, metric, threshold):
     rankings = []
     for id in summary_ids:
-        res = [i for i in coll.find({'sample':id,'combine':combine,'metric':metric,'threshold':t})]
+        res = [i for i in coll.find({'sample':id, 'combine':combine, 'metric':metric, 'threshold':threshold})]
         assert len(res) == 1, 'mongodb did not return unique doc: {}'.format(res)
         score = res[0]['machine']['weightedsum']
         rankings.append((score,id))
     return sorted(rankings,reverse=True)
 
-def get_ordinals(summary_ids,rankings):
-    ''' args: list of (score, id) tuples sorted in descending order
-        returns: tuple of ranks for each id for ids in the same order as in summary_ids
-		'''
-    scores = [s for s,id in rankings]
-    ids = [id for s,id in rankings]
-    ranks= []
-    for id in summary_ids:
-		ranks.append(ids.index(id)+1)
+def get_ordinals(summary_ids, rankings):
+    '''Return tuple of ordinals for each summary id in the order of `summary_ids` input.
+    Accepts:
+    summary_ids: list of ids of the student summaries
+    rankings: list of (score, id) tuples
+    '''
+    scores = [score for score, summ_id in rankings]
+    ids = [summ_id for score, summ_id in rankings]
+    ranks = [(ids.index(summ_id)+1) for summ_id in ids]
     observations = set(scores)
     if len(scores)!=len(observations):
-		c = collections.Counter(scores)
-		dup_ordinals = []
-		for obs,count in c.items():
-			if count>1:
-				# get indices of duplicate scores in sorted score list
-				dup_ordinals.append(get_dup_ordinals(obs,scores))
-		#replace values in ordinals with mean(ordinals)
-		for r in ranks:
-			if r in itertools.chain.from_iterable((j for j in dup_ordinals)):
-				r_index = ranks.index(r)
-				ranks[r_index] = np.mean([i for i in itertools.ifilter(lambda x:r in x,dup_ordinals)])
+        counter = collections.Counter(scores) 
+	dup_ordinals = [get_dup_ordinals(obs, scores) for obs, count in counter.items() if count > 1]
+        #replace values in ordinals with mean(ordinals)
+	for r in ranks:
+            if r in itertools.chain.from_iterable((j for j in dup_ordinals)):
+		r_index = ranks.index(r)
+		ranks[r_index] = np.mean([i for i in itertools.ifilter(lambda x:r in x, dup_ordinals)])
     return ranks
 
-def get_dup_ordinals(obs,scores):
-	return [ind+1 for ind,o in enumerate(scores) if o==obs]
-
-def print_results1(res):
-    i=0
-    for m,c,t,pearson,spearman,kendall,jaccard in res:
-        print '{0}\t{1}\t{2}\t\t{3:.3}\t{4:.3}\t\t{5:.3}\t\t{6:.3}'.format(m,c,t,pearson,spearman,kendall,jaccard)
-        i+=1
-        if i==15:
-            print '\n'
-            i=0
-def print_results2(res):
-    i=0
-    for m,c,t,jaccard,ratio in res:
-        print '{0}\t{1}\t{2}\t\t{3:.3}\t{4:.3}'.format(m,c,t,jaccard,ratio)
-        i+=1
-        if i==15:
-            print '\n'
-            i=0
+def get_dup_ordinals(obs, scores):
+    return [(ind + 1) for ind, observation in enumerate(scores) if observation == obs]
 
 def stat_sort(stat):
-	# presents results ordered by metric and combine function
-	return sorted(stat,key=operator.itemgetter(2,1,3))
+    """Present results ordered by metric and combine function."""
+    return sorted(stat,key=operator.itemgetter(2,1,3))
 
 def get_human_attr(summary_ids):
-	HUMAN_SCORES = []
-	HUMAN_SCUS = dict.fromkeys(summary_ids)
-	for id in summary_ids:
-		HUMAN_SCUS[id] = coll.find_one({'sample':id})['human']['scus']
-		score = coll.find_one({'sample':id})['human']['weighted_sum']
-		HUMAN_SCORES.append(score)
-	HUMAN_RANKINGS = sorted((i for i in itertools.izip(HUMAN_SCORES,summary_ids)),reverse=True)
-	HUMAN_ORDINALS = get_ordinals(summary_ids,HUMAN_RANKINGS)
-	return (HUMAN_SCUS,HUMAN_SCORES,HUMAN_RANKINGS,HUMAN_ORDINALS)
+    human_scores = []
+    human_scus = dict.fromkeys(summary_ids)
+    for id in summary_ids:
+        human_scus[id] = coll.find_one({'sample':id})['human']['scus']
+        score = coll.find_one({'sample':id})['human']['weighted_sum']
+        human_scores.append(score)
+    human_rankings = sorted((i for i in itertools.izip(human_scores, summary_ids)), reverse=True)
+    human_ordinals = get_ordinals(summary_ids, human_rankings)
+    return (human_scus, human_scores, human_rankings, human_ordinals)
 
 def get_exp_attr(metrics,experiments,summary_ids,human_scus,human_scores,human_rankings,human_ordinals):
 	pearson = []
@@ -286,9 +268,9 @@ def rank_experiments(labels):
 		res.append(sorted(stats[i],reverse=True))
 		stats[i] = ([(c,m,t,interval) for center,c,m,t,interval in sorted(stats[i],reverse=True)])
 	for stat,name in itertools.izip(stats,names):
-		with open('exp_rankings/experiment_rankings_with_intervals_'+name,'wb') as f:
-			writer = csv.writer(f)
-			writer.writerows(stat)
+		with open("/Users/EmilyChen/Dropbox/pyramids/doc/exp_rankings/experiment_rankings_with_intervals_{}".format(name), 'wb') as f:
+		    writer = csv.writer(f)
+		    writer.writerows(stat)
 	return res
 
 if __name__ == '__main__':
