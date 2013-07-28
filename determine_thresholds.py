@@ -8,6 +8,8 @@ from decimal import *
 import collections
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.font_manager import FontProperties
+from matplotlib.lines import Line2D
 
 def ppf_discrete(corrects,a):
     mass_densities = np.array(np.bincount(corrects),dtype=float)/np.bincount(corrects).sum()
@@ -46,28 +48,33 @@ def plot_compare(results):
     # make a subplot for each of the combine functions
     x = np.linspace(0,1,600)
     fig, ax = plt.subplots(3,1,sharex=True,sharey=True)
-    fig.set_size_inches(10.0,12.0)
-    fig.subplots_adjust(hspace=0.2)
-    tickfont = matplotlib.font_manager.FontProperties(family='times new roman',style='normal',size=14,weight='normal')
-    titlefont = matplotlib.font_manager.FontProperties(family='times new roman',style='normal',size=20,weight='normal')
+    fig.set_size_inches(3.1,4.66)
+    plt.subplots_adjust(top=0.81)
+    tickfont = matplotlib.font_manager.FontProperties(family='times new roman',style='normal',size=8,weight='normal')
+    titlefont = matplotlib.font_manager.FontProperties(family='times new roman',style='normal',size=10,weight='normal')
     i = 0
+    labelfont = FontProperties(family='times new roman',size=8)
     for combine in results:
         y1 = results[combine]['uni'].evaluate(x)
+        L1 = Line2D(x,y1,linestyle='-.')
         ax[i].plot(x,y1,'-.k')
         y2 = results[combine]['ro'].evaluate(x)
+        L2 = Line2D(x,y2,linestyle=':')
         ax[i].plot(x,y2,':k')
         y3 = results[combine]['control'].evaluate(x)
+        L3 = Line2D(x,y3,linestyle='--')
         ax[i].plot(x,y3,'--k')
-        y4 = results[combine]['augmented'].evaluate(x)
-        ax[i].plot(x,y4,'-k')
-        ax[i].set_ylim(0.0,6.0)
+        ax[i].set_ylim(0.0,3.0)
         for label in ax[i].get_xticklabels()+ax[i].get_yticklabels():
             label.set_fontproperties(tickfont)
-        title = ax[i].set_title('Combine function: {}'.format(combine))
+        title = ax[i].set_title(combine)
         title.set_fontproperties(titlefont)
-        legend = ax[i].legend(['unigram overlap','ratcliff obershelp','latent vector cosine similarity','latent vectors, augmented corpus'],prop={'family':'times new roman','size':16},labelspacing = 0.3)
+	#legend = ax[i].legend(['unigram overlap','ratcliff obershelp','latent vector cosine similarity','latent vectors, augmented corpus'],prop={'family':'times new roman','size':8},labelspacing = 0.3)
+        ax[i].set_ylabel('density',fontproperties=labelfont)
         i+=1
-    fig.savefig(combine)
+    ax[i-1].set_xlabel('pairwise similarity score',fontproperties=labelfont)
+    legend = fig.legend([L1,L2,L3],['Unigram Overlap','Ratcliff/Oberschelp','Latent Vector Cosine Similarity'],prop={'family':'times new roman','size':8},labelspacing = 0.3,loc=(0.22,0.86))
+    fig.savefig('thresholds_with_labels7')
     #plt.hist(corrects,bins=1+np.log2(corrects.size),normed=1)
     # evaluate() evaluates the pdf on each of the points passed to it
 
@@ -81,7 +88,7 @@ def prettyprint(combine,metric,thresholds):
 if __name__ == '__main__':
     c = pymongo.Connection()
     db = c.tc_storage
-    metrics = ['uni','ro','control','augmented']
+    metrics = ['uni','ro','control']
     combine_functions = ['max','mean','min']
     results = dict.fromkeys(combine_functions)
     for key in results:
