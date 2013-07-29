@@ -77,8 +77,8 @@ def get_summ_rankings(summary_ids, combine, metric, threshold):
         res = [i for i in coll.find({'sample':id, 'combine':combine, 'metric':metric, 'threshold':threshold})]
         assert len(res) == 1, 'mongodb did not return unique doc: {}'.format(res)
         score = res[0]['machine']['weightedsum']
-        rankings.append((score,id))
-    return sorted(rankings,reverse=True)
+        rankings.append((score, id))
+    return sorted(rankings, reverse=True)
 
 def get_ordinals(summary_ids, rankings):
     '''Return tuple of ordinals for each summary id in the order of `summary_ids` input.
@@ -105,7 +105,7 @@ def get_dup_ordinals(obs, scores):
 
 def stat_sort(stat):
     """Present results ordered by metric and combine function."""
-    return sorted(stat, key = operator.itemgetter(2,1,3))
+    return sorted(stat, key = operator.itemgetter(2, 1, 3))
 
 def get_human_attr(summary_ids):
     human_scores = []
@@ -150,16 +150,16 @@ def store_in_db(excluded, stat_names, labels, results):
         db.experimentstats.save(doc)
 
 def cross_val(summary_ids, stat_names, metrics, experiments, labels):
-	for i in xrange(len(summary_ids)):
-		excluded = summary_ids[i]
-		human_scus,human_scores,human_rankings,human_ordinals = get_human_attr(summary_ids[:i]+summary_ids[i+1:])
-		statistics = get_exp_attr(metrics,experiments,summary_ids[:i]+summary_ids[i+1:],human_scus,human_scores,human_rankings,human_ordinals)
-		sorted_stats = []
-		for stat in statistics:
-			sorted_stats.append([score for (score,c,m,t) in stat_sort(stat)])
-		results1 = [[m for (m,c,t) in labels]]+[[c for (m,c,t) in labels]]+[[t for (m,c,t) in labels]]+sorted_stats
-		header1 = ['metric','combine','threshold',stat_names[0],stat_names[1],stat_names[2],stat_names[3],stat_names[4]]
-		store_in_db(excluded,stat_names,labels,itertools.izip(*results1))
+    for i in xrange(len(summary_ids)):
+        excluded = summary_ids[i]
+	human_scus, human_scores, human_rankings, human_ordinals = get_human_attr(summary_ids[:i] + summary_ids[i+1:])
+	statistics = get_exp_attr(metrics, experiments, summary_ids[:i] + summary_ids[i+1:], human_scus, human_scores, human_rankings, human_ordinals)
+	sorted_stats = []
+	for stat in statistics:
+	    sorted_stats.append([score for (score, combine, metric, threshold) in stat_sort(stat)])
+	results = [[metric for (metric, combine, threshold) in labels]] + [[combine for (metric, combine, threshold) in labels]] + [[threshold for (metric, combine, threshold) in labels]] + sorted_stats
+        header = ['metric', 'combine', 'threshold'] + stat_names
+	store_in_db(excluded, stat_names, labels, itertools.izip(*results))
 
 def get_all_confint(labels):
     for metric, combine, threshold in labels:
@@ -184,7 +184,7 @@ def get_all_confint(labels):
 	db.experimentstats.save(doc)
 
 def compute_confint(mean, std):
-    # assumes gaussian distribution and returns (a,b) = (percent point function at 0.025, percent point function at 0.975)
+    # Assume gaussian distribution and return (a,b) = (ppf at 0.025, ppf at 0.975)
     return scipy.stats.norm.interval(alpha=0.95, loc=mean, scale=std)
 
 def plot(n, markers, axes, stat, x, name, ylabel, yticks):
@@ -243,7 +243,7 @@ def draw_correlation_coeff_confidence_intervals(num_experiments, markers, data):
         plot(num_experiments, markers, axes[i,], stat, top_n_experiments, plot_titles[i], "Correlation", yticks[i])
         i += 1
     put_legend_on_axes("upper center", axes[0,], markers, all_experiment_rankings[0], num_experiments, bbox_to_anchor=(0.5, 1.5))
-    fig.set_size_inches(10,15)
+    fig.set_size_inches(10, 15)
     fig.subplots_adjust(hspace=0.3)
     plt.draw() 
 
@@ -262,43 +262,29 @@ def draw_scu_set_similarity_confidence_intervals(num_experiments, markers, data)
     plt.draw()
 
 def rank_experiments(labels):
-	# get centers
-	pearson = []
-	spearman = []
-	kendall = []
-	jacc = []
-	for m,c,t in labels:
-		p = [i for i in db.experimentstats.find({'metric':m,'combine':c,'thres':t,'pearson_int':{'$exists':True}})]
-		assert len(p) == 1, 'mongodb did not return unique result for {0},{1},{2}, pearsonint'.format(m,c,t)
-		pcenter = np.mean(p[0]['pearson_int'])
-		pearson.append((pcenter,m,c,t,tuple(p[0]['pearson_int'])))
-		
-		s = [i for i in db.experimentstats.find({'metric':m,'combine':c,'thres':t,'spearman_int':{'$exists':True}})]
-		assert len(s) == 1, 'mongodb did not return unique result for {0},{1},{2}, spearmanint'.format(m,c,t)
-		scenter = np.mean(s[0]['spearman_int'])
-		spearman.append((scenter,m,c,t,tuple(s[0]['spearman_int'])))
-		
-		k = [i for i in db.experimentstats.find({'metric':m,'combine':c,'thres':t,'kendint':{'$exists':True}})]
-		assert len(k) == 1, 'mongodb did not return unique result for {0},{1},{2}, kendint'.format(m,c,t)
-		kcenter = np.mean(k[0]['kendint'])
-		kendall.append((kcenter,m,c,t,tuple(k[0]['kendint'])))
-					   
-		j = [i for i in db.experimentstats.find({'metric':m,'combine':c,'thres':t,'jaccard_int':{'$exists':True}})]
-		assert len(j) == 1, 'mongodb did not return unique result for {0},{1},{2}, jacc_int'.format(m,c,t)
-		jcenter = np.mean(j[0]['jaccard_int'])
-		jacc.append((jcenter,m,c,t,tuple(j[0]['jaccard_int'])))
-
-	stats = [pearson,spearman,kendall,jacc]
-	names = ['pearson','spearman','kendalltau','jaccard']
-	res = []
-	for i in xrange(len(stats)):
-		res.append(sorted(stats[i],reverse=True))
-		stats[i] = ([(c,m,t,interval) for center,c,m,t,interval in sorted(stats[i],reverse=True)])
-	for stat,name in itertools.izip(stats,names):
-		with open("/Users/EmilyChen/Dropbox/pyramids/doc/exp_rankings/experiment_rankings_with_intervals_{}".format(name), 'wb') as f:
-		    writer = csv.writer(f)
-		    writer.writerows(stat)
-	return res
+    # get centers
+    pearson, spearman, kendall, jacc = [[],[],[],[]]
+    stats = [(pearson, "pearsonint"), (spearman, "spearman_int"), (kendall, "kendint"), (jacc, "jaccard_int")]
+    for metric, combine, threshold in labels:
+        for stat_list, stat_key in stats:
+	    vals = [i for i in db.experimentstats.find({'metric':metric, 
+                                                        'combine':combine, 
+                                                        'thres':threshold, 
+                                                        stat_key:{'$exists':True}})]
+            assert len(vals) == 1, 'mongodb did not return unique result for {m}, {c}, {t}, {stat}'.format(m=metric, c=combine, t=threshold, stat=stat_key)
+            center = np.mean(vals[0][stat_key])
+	    stat_list.append((center, metric, combine, threshold, tuple(vals[0][stat_key])))
+    stats = [stat_list for stat_list, stat_key in stats]
+    names = ['pearson','spearman','kendalltau','jaccard']
+    res = []
+    for i in xrange(len(stats)):
+        res.append(sorted(stats[i], reverse=True))
+        stats[i] = ([(combine, metric, threshold, interval) for center, combine, metric, threshold, interval in sorted(stats[i],reverse=True)])
+    for stat, name in itertools.izip(stats, names):
+	with open("/Users/EmilyChen/Dropbox/pyramids/doc/exp_rankings/experiment_rankings_with_intervals_{}".format(name), 'wb') as f:
+	    writer = csv.writer(f)
+	    writer.writerows(stat)
+    return res
 
 if __name__ == '__main__':
     plt.ion()
@@ -307,18 +293,18 @@ if __name__ == '__main__':
     coll = db.writingsamplestest
     # generate immutable tuple of summary ids as reference for generating scores for each experiment
     summary_ids = tuple(coll.distinct('sample'))	
-    combine_functions = ['max','mean','min']
-    metrics = ['uni','ro','cos']
+    combine_functions = ['max', 'mean', 'min']
+    metrics = ['uni', 'ro', 'cos']
     experiments = dict.fromkeys(combine_functions)
-    stat_names = ['pearson','spearman','kendallstau','jaccard','scu_ratio']
+    stat_names = ['pearson', 'spearman', 'kendallstau', 'jaccard', 'scu_ratio']
     # evaluate results for dummy data to generate labels
-    human_scus,human_scores,human_rankings,human_ordinals = get_human_attr(summary_ids)
-    labels = [(m,c,t) for (score,c,m,t) in stat_sort(get_exp_attr(metrics,experiments,summary_ids,human_scus,human_scores,human_rankings,human_ordinals)[0])]
-    #cross_val(summary_ids,stat_names,metrics,experiments,labels)
-    #get_all_confint(labels)
+    human_scus, human_scores, human_rankings, human_ordinals = get_human_attr(summary_ids)
+    labels = [(m,c,t) for (score,c,m,t) in stat_sort(get_exp_attr(metrics, experiments, summary_ids, human_scus, human_scores, human_rankings, human_ordinals)[0])]
+    cross_val(summary_ids, stat_names, metrics, experiments, labels)
+    get_all_confint(labels)
     all_experiment_rankings = rank_experiments(labels)
     num_experiments = 10
     markers = {'cos':'x', 'ro':'<', 'uni':'s'}
     draw_correlation_coeff_confidence_intervals(num_experiments, markers, all_experiment_rankings[:-1])
     stat = all_experiment_rankings[-1]
-    #draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat)
+    draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat)
