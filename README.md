@@ -18,6 +18,13 @@ Files
 
 * determine_thresholds.py outputs 5 threshold values to set as the minimum semantic similarity score that the algorithm will use to classify a match between a string in the target summary being evaluated and a SCU in the pyramid. These 5 values are the semantic similarity scores of strings in the target summaries that have been annotated by a human as semantically equivalent to an SCU in the pyramid, that have inverse cumulative distribution function values of 0.05, 0.10, 0.15, 0.20, 0.25. This script uses a gaussian kernel density estimator to estimate a continuous distribution of similarity scores and plots the distribution.
 
-* dyn_prog_test.py runs the dynamic programming algorithm to return the sum of the SCU weights for each of the target summaries.
+* dynamic_programming.py runs the dynamic programming algorithm to return the sum of the SCU weights for each of the target summaries.
 
 * get_score_stats.py computes Pearson's correlation of the absolute score for individual summaries, Spearman's rank-order correlation of the ranking of the summaries, Kendall's tau (another metric for summary rank-order correlation) and Jaccard similarity of retrieved content unit sets. This script generates a plot to show the performance of 60 different systems for each of these metrics, displaying a system's performance with a 95% confidence interval.
+
+Contact
+-------
+* Rebecca J. Passonneau, Columbia University Center for Computational Learning Systems [(becky@ccls.columbia.edu)](becky@ccls.columbia.edu)
+* Emily Chen, Columbia University Department of Computer Science [(ec2805@columbia.edu)](ec2805@columbia.edu)
+* Weiwei Guo, Columbia University Department of Computer Science [(weiwei@cs.columbia.edu)](weiwei@cs.columbia.edu)
+* Dolores Perin, Columbia University Teachers College [(perin@tc.edu)](perin@tc.edu)
