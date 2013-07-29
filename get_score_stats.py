@@ -88,7 +88,7 @@ def get_ordinals(summary_ids, rankings):
     '''
     scores = [score for score, summ_id in rankings]
     ids = [summ_id for score, summ_id in rankings]
-    ranks = [(ids.index(summ_id)+1) for summ_id in ids]
+    ranks = [(ids.index(summ_id) + 1) for summ_id in ids]
     observations = set(scores)
     if len(scores)!=len(observations):
         counter = collections.Counter(scores) 
@@ -97,7 +97,7 @@ def get_ordinals(summary_ids, rankings):
 	for r in ranks:
             if r in itertools.chain.from_iterable((j for j in dup_ordinals)):
 		r_index = ranks.index(r)
-		ranks[r_index] = np.mean([i for i in itertools.ifilter(lambda x:r in x, dup_ordinals)])
+		ranks[r_index] = np.mean([i for i in itertools.ifilter(lambda x: r in x, dup_ordinals)])
     return ranks
 
 def get_dup_ordinals(obs, scores):
@@ -105,7 +105,7 @@ def get_dup_ordinals(obs, scores):
 
 def stat_sort(stat):
     """Present results ordered by metric and combine function."""
-    return sorted(stat,key=operator.itemgetter(2,1,3))
+    return sorted(stat, key = operator.itemgetter(2,1,3))
 
 def get_human_attr(summary_ids):
     human_scores = []
@@ -118,7 +118,13 @@ def get_human_attr(summary_ids):
     human_ordinals = get_ordinals(summary_ids, human_rankings)
     return (human_scus, human_scores, human_rankings, human_ordinals)
 
-def get_exp_attr(metrics,experiments,summary_ids,human_scus,human_scores,human_rankings,human_ordinals):
+def get_exp_attr(metrics, 
+                 experiments, 
+                 summary_ids, 
+                 human_scus, 
+                 human_scores, 
+                 human_rankings, 
+                 human_ordinals):
 	pearson = []
 	jaccard = []
 	spearman = []
@@ -199,36 +205,30 @@ def store_ranking_interval():
 	'''
 	pass
 
-def plot(n,axes,stat,x,name,yticks):
-	centers = [center for center,metric,combine,thres,interval in stat][:n]
-	metrics = [metric for center,metric,combine,thres,interval in stat][:n]
-	yerrs = [(interval[1]-interval[0])/float(2) for center,metric,combine,thres,interval in stat][:n]
-	markers = {'cos':'x','ro':'o','aug':'<','uni':'s'}
-	for rank,center,metric,error in itertools.izip(x,centers,metrics,yerrs):
-		if metric=='ro':
-			axes.errorbar(rank,center,error,marker=markers[metric],mec='black',mfc='white',ecolor='black')
-		else:
-			axes.errorbar(rank,center,error,marker=markers[metric],mec='black',mfc='black',ecolor='black')
-	title_fontprop = FontProperties(family='times new roman',size='medium')
-	axes.set_title(name,fontproperties=title_fontprop)
-	fontprop = FontProperties(family='times new roman',size='large')
-	axes.set_ylabel('parameter score',fontproperties=fontprop)
-	axes.set_yticks(yticks)
-	axes.set_yticklabels([str(tick) for tick in yticks],family='times new roman')
+def plot(n, markers, axes, stat, x, name, yticks):
+    centers = [center for center,metric,combine,thres,interval in stat][:n]
+    metrics = [metric for center,metric,combine,thres,interval in stat][:n]
+    yerrs = [(interval[1]-interval[0])/float(2) for center,metric,combine,thres,interval in stat][:n]
+    for rank, center, metric, error in itertools.izip(x, centers, metrics, yerrs):
+	axes.errorbar(rank, center, error, marker=markers[metric], mec='black', mfc='black', ecolor='black')
+    title_fontprop = FontProperties(family='times new roman', size='medium')
+    axes.set_title(name, fontproperties=title_fontprop)
+    fontprop = FontProperties(family='times new roman', size='large')
+    axes.set_ylabel('parameter score', fontproperties=fontprop)
+    axes.set_yticks(yticks)
+    axes.set_yticklabels([str(tick) for tick in yticks], family='times new roman')
 	
-def put_legend_on_axes(axes,stat,x):
-	centers = [center for center,metric,combine,thres,interval in stat][:n]
-	metrics = [metric for center,metric,combine,thres,interval in stat][:n]
-	yerrs = [(interval[1]-interval[0])/float(2) for center,metric,combine,thres,interval in stat][:n]
-	markers = {'cos':'x','ro':'o','aug':'<','uni':'s'}
-	all_metrics = {'cos':'LVc','ro':'RO','aug':'LVd'}
-	for mkey in all_metrics:
-		if mkey=='ro': mfc = 'white'
-		else: mfc = 'black'
-                if list(x[np.where(np.array(metrics)==mkey)]):
-                    add_metric_to_legend(axes,markers[mkey],mfc,all_metrics[mkey],x[np.where(np.array(metrics)==mkey)],np.array(centers)[np.where(np.array(metrics)==mkey)],np.array(yerrs)[np.where(np.array(metrics)==mkey)])
-	fontprop = FontProperties(family='times new roman',size='medium')
-	axes.legend(loc='upper center',bbox_to_anchor=(0.5, 1.5),ncol=4,prop=fontprop)
+def put_legend_on_axes(axes, markers, stat, x):
+    centers = [center for center, metric, combine, thres, interval in stat][:n]
+    metrics = [metric for center, metric, combine, thres, interval in stat][:n]
+    yerrs = [(interval[1] - interval[0]) / float(2) for center, metric, combine, thres, interval in stat][:n]
+    mfc = 'black'
+    all_metrics = {'cos':'LVc','ro':'RO','uni':'UNI'}
+    for mkey in all_metrics:
+        if list(x[np.where(np.array(metrics)==mkey)]):
+            add_metric_to_legend(axes,markers[mkey],mfc,all_metrics[mkey],x[np.where(np.array(metrics)==mkey)],np.array(centers)[np.where(np.array(metrics)==mkey)],np.array(yerrs)[np.where(np.array(metrics)==mkey)])
+    fontprop = FontProperties(family='times new roman',size='medium')
+    axes.legend(loc='upper center',bbox_to_anchor=(0.5, 1.5),ncol=4,prop=fontprop)
 
 def add_metric_to_legend(axes,marker,mfc,metric,x_data,y_data,y_err_data):
     points = [i for i in itertools.izip(x_data,y_data,y_err_data)]
@@ -282,7 +282,7 @@ if __name__ == '__main__':
 	summary_ids = tuple(coll.distinct('sample'))
 		
 	combine_functions = ['max','mean','min']
-	metrics = ['uni','ro','cos','aug']
+	metrics = ['uni','ro','cos']
 	experiments = dict.fromkeys(combine_functions)
 	stat_names = ['pearson','spearman','kendallstau','jaccard','scu_ratio']
 	# evaluate results for dummy data to generate labels
@@ -291,25 +291,25 @@ if __name__ == '__main__':
 #cross_val(summary_ids,stat_names,metrics,experiments,labels)
 #get_all_confint(labels)
 	all_experiment_rankings = rank_experiments(labels)
-	fig,axes = plt.subplots(nrows=4,ncols=1,sharex=True)
+	fig,axes = plt.subplots(nrows=3, ncols=1, sharex=True)
 	n = 10
-	axes[3,].set_xticklabels(np.arange(0,n+2,2),family='times new roman')
+	axes[2,].set_xticklabels(np.arange(0,n+2,2),family='times new roman')
 	fontprop = FontProperties(family='times new roman',size='large')
-	axes[3,].set_xlabel('experiment ranking',fontproperties=fontprop)
+	axes[2,].set_xlabel('experiment ranking',fontproperties=fontprop)
 	axes[0,].set_xlim(0,n+1)
 	axes[0,].set_ylim(0.8,1)
 	axes[1,].set_ylim(0.8,1)
 	axes[2,].set_ylim(0.7,1)
-	axes[3,].set_ylim(0.4,0.6)
+	#axes[3,].set_ylim(0.4,0.6)
 	yticks = {0:np.array(xrange(8,11))*0.1,1:np.array(xrange(8,11))*0.1,2:np.array(xrange(7,11))*0.1,3:np.array(xrange(4,7))*0.1}
 	x = np.arange(1,n+1)
 	i = 0
-	plot_titles = ['(a)','(b)','(c)','(d)']
-	for stat in all_experiment_rankings:
-		plot(n,axes[i,],stat,x,plot_titles[i],yticks[i])
-		i+=1
-	put_legend_on_axes(axes[0,],all_experiment_rankings[0],x)
+	plot_titles = ["(a) Pearson", "(b) Spearman", "(c) Kendall's tau"]
+        markers = {'cos':'x', 'ro':'<', 'uni':'s'}
+        for stat in all_experiment_rankings[:-1]:
+            plot(n, markers, axes[i,], stat, x, plot_titles[i], yticks[i])
+            i+=1
+	put_legend_on_axes(axes[0,], markers, all_experiment_rankings[0], x)
 	fig.set_size_inches(10,15)
 	fig.subplots_adjust(hspace=0.3)
-#labels=['Latent Vector Cosine Similarity','Ratcliff Obershelp', 'Unigram Overlap','Cosine Similarity, augmented training corpus']
 	plt.draw()
