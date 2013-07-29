@@ -125,41 +125,31 @@ def get_exp_attr(metrics,
                  human_scores, 
                  human_rankings, 
                  human_ordinals):
-	pearson = []
-	jaccard = []
-	spearman = []
-	kendallstau = []
-	scu_ratio = []
-	for combine in experiments:
-		experiments[combine] = dict.fromkeys(metrics)
-		for metric in experiments[combine]:
-			experiments[combine][metric] = dict.fromkeys(str(i) for i in db.experiments.find_one({'combine':combine,'metric':metric})['thresholds'])
-			for t in experiments[combine][metric]:
-				trial = Experiment(summary_ids,combine,metric,float(t),human_scus,human_scores,human_rankings,human_ordinals)
-				experiments[combine][metric][t] = trial
-				pearson.append((trial.pearson,trial.combine,trial.metric,trial.thres))
-				jaccard.append((trial.jaccard,trial.combine,trial.metric,trial.thres))
-				spearman.append((trial.spearman,trial.combine,trial.metric,trial.thres))
-				kendallstau.append((trial.kendallstau,trial.combine,trial.metric,trial.thres))
-				scu_ratio.append((trial.scu_ratio,trial.combine,trial.metric,trial.thres))
-	return [pearson,spearman,kendallstau,jaccard,scu_ratio]
+    pearson = []
+    jaccard = []
+    spearman = []
+    kendallstau = []
+    scu_ratio = []
+    for combine in experiments:
+        experiments[combine] = dict.fromkeys(metrics)
+        for metric in experiments[combine]:
+            experiments[combine][metric] = dict.fromkeys(str(i) for i in db.experiments.find_one({'combine':combine, 'metric':metric})['thresholds'])
+            for threshold in experiments[combine][metric]:
+                trial = Experiment(summary_ids, combine, metric, float(threshold), human_scus, human_scores, human_rankings, human_ordinals)
+                experiments[combine][metric][threshold] = trial
+                pearson.append((trial.pearson, trial.combine, trial.metric, trial.thres))
+                jaccard.append((trial.jaccard, trial.combine, trial.metric, trial.thres))
+                spearman.append((trial.spearman, trial.combine, trial.metric, trial.thres))
+                kendallstau.append((trial.kendallstau, trial.combine, trial.metric, trial.thres))
+                scu_ratio.append((trial.scu_ratio, trial.combine, trial.metric, trial.thres))
+    return [pearson, spearman, kendallstau, jaccard, scu_ratio]
 
-def write_raw_data(data,excluded):
-	with open('experiment_results/rawstats_excluding_'+excluded,'wb') as f:
-		csvwriter = csv.writer(f)
-		csvwriter.writerows(data)
+def store_in_db(excluded, stat_names, labels, results):
+    for crossval in results:
+        doc = dict(itertools.izip(['excluded', 'metric', 'combine', 'thres'] + stat_names, (excluded,) + crossval))
+        db.experimentstats.save(doc)
 
-def write_exp_rankings(data,excluded):
-	with open('experiment_results/experiment_rankings_excluding_'+excluded,'wb') as f:
-		csvwriter = csv.writer(f)
-		csvwriter.writerows(data)
-
-def store_in_db(excluded,stat_names,labels,results):
-	for crossval in results:
-		doc = dict(itertools.izip(['excluded','metric','combine','thres']+stat_names,(excluded,)+crossval))
-		db.experimentstats.save(doc)
-
-def cross_val(summary_ids,stat_names,metrics,experiments,labels):
+def cross_val(summary_ids, stat_names, metrics, experiments, labels):
 	for i in xrange(len(summary_ids)):
 		excluded = summary_ids[i]
 		human_scus,human_scores,human_rankings,human_ordinals = get_human_attr(summary_ids[:i]+summary_ids[i+1:])
@@ -169,41 +159,33 @@ def cross_val(summary_ids,stat_names,metrics,experiments,labels):
 			sorted_stats.append([score for (score,c,m,t) in stat_sort(stat)])
 		results1 = [[m for (m,c,t) in labels]]+[[c for (m,c,t) in labels]]+[[t for (m,c,t) in labels]]+sorted_stats
 		header1 = ['metric','combine','threshold',stat_names[0],stat_names[1],stat_names[2],stat_names[3],stat_names[4]]
-	#write_raw_data(itertools.chain(iter([header1]),itertools.izip(*results1)),excluded)
 		store_in_db(excluded,stat_names,labels,itertools.izip(*results1))
 
 def get_all_confint(labels):
-	for m,c,t in labels:
-		pearson = []
-		spearman = []
-		jaccard = []
-		kendallstau = []
-		scu_ratio = []
-		for res in db.experimentstats.find({'metric':m,'combine':c,'thres':t}):
-			pearson.append(res['pearson'])
-			spearman.append(res['spearman'])
-			jaccard.append(res['jaccard'])
-			kendallstau.append(res['kendallstau'])
-			scu_ratio.append(res['scu_ratio'])
-		stats = [pearson,spearman,jaccard,kendallstau,scu_ratio]
-		statmeans = [np.mean(stat) for stat in stats]
-		intervals = []
-		statdevs = [np.std(stat) for stat in stats]
-		for mean,std in itertools.izip(statmeans,statdevs):
-			intervals.append(compute_confint(mean,std))
-		doc=dict(itertools.izip(['excluded','metric','combine','thres','pearson_int','spearman_int','jaccard_int','kendint','ratio_int'],['none',m,c,t]+intervals))
-		db.experimentstats.save(doc)
+    for metric, combine, threshold in labels:
+	pearson = []
+	spearman = []
+	jaccard = []
+	kendallstau = []
+	scu_ratio = []
+	for res in db.experimentstats.find({'metric':metric, 'combine':combine, 'thres':threshold}):
+            pearson.append(res['pearson'])
+	    spearman.append(res['spearman'])
+	    jaccard.append(res['jaccard'])
+	    kendallstau.append(res['kendallstau'])
+	    scu_ratio.append(res['scu_ratio'])
+	stats = [pearson, spearman, jaccard, kendallstau, scu_ratio]
+	statmeans = [np.mean(stat) for stat in stats]
+	intervals = []
+	statdevs = [np.std(stat) for stat in stats]
+	for mean,std in itertools.izip(statmeans,statdevs):
+	    intervals.append(compute_confint(mean,std))
+	doc = dict(itertools.izip(['excluded', 'metric', 'combine', 'thres', 'pearson_int', 'spearman_int', 'jaccard_int', 'kendint', 'ratio_int'], ['none', metric, combine, threshold] + intervals))
+	db.experimentstats.save(doc)
 
-def compute_confint(mean,std):
-	# assumes gaussian distribution and returns (a,b) = (percent point function at 0.025, percent point function at 0.975)
-	return scipy.stats.norm.interval(alpha=0.95,loc=mean,scale=std)
-
-def store_ranking_interval():
-	'''
-	returns the lowest and highest possible ranking for each experiment for the Pearson,
-	Spearman, Kendall's tau and Jaccard set similarity statistics
-	'''
-	pass
+def compute_confint(mean, std):
+    # assumes gaussian distribution and returns (a,b) = (percent point function at 0.025, percent point function at 0.975)
+    return scipy.stats.norm.interval(alpha=0.95, loc=mean, scale=std)
 
 def plot(n, markers, axes, stat, x, name, yticks):
     centers = [center for center,metric,combine,thres,interval in stat][:n]
@@ -233,6 +215,43 @@ def put_legend_on_axes(axes, markers, stat, x):
 def add_metric_to_legend(axes,marker,mfc,metric,x_data,y_data,y_err_data):
     points = [i for i in itertools.izip(x_data,y_data,y_err_data)]
     axes.errorbar(points[0][0],points[0][1],points[0][2],marker=marker,mec='black',mfc=mfc,ecolor='black',label=metric)
+
+def draw_correlation_coeff_confidence_intervals(num_experiments, markers):
+    fig, axes = plt.subplots(nrows=3, ncols=1, sharex=True)
+    axes[2,].set_xticklabels(np.arange(0, num_experiments + 2, 2), family = 'times new roman')
+    fontprop = FontProperties(family='times new roman', size='large')
+    axes[2,].set_xlabel('experiment ranking', fontproperties = fontprop)
+    axes[0,].set_xlim(0, num_experiments + 1)
+    axes[0,].set_ylim(0.8, 1)
+    axes[1,].set_ylim(0.8, 1)
+    axes[2,].set_ylim(0.7, 1)
+    yticks = {0:np.array(xrange(8, 11)) * 0.1, 1:np.array(xrange(8, 11)) * 0.1, 2:np.array(xrange(7, 11)) * 0.1, 3:np.array(xrange(4, 7)) * 0.1}
+    top_n_experiments = np.arange(1, num_experiments + 1)
+    i = 0
+    plot_titles = ["(a) Pearson", "(b) Spearman", "(c) Kendall's tau"]
+    for stat in all_experiment_rankings[:-1]:
+        plot(num_experiments, markers, axes[i,], stat, top_n_experiments, plot_titles[i], yticks[i])
+        i += 1
+    put_legend_on_axes(axes[0,], markers, all_experiment_rankings[0], top_n_experiments)
+    fig.set_size_inches(10,15)
+    fig.subplots_adjust(hspace=0.3)
+    plt.draw() 
+
+def draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat):
+    fig, axis = plt.subplots(nrows=1, ncols=1)
+    axis.set_xticklabels(np.arange(0, num_experiments + 2, 2), family = 'times new roman')
+    fontprop = FontProperties(family='times new roman', size='large')
+    axis.set_xlabel('experiment ranking', fontproperties = fontprop)
+    axis.set_xlim(0, num_experiments + 1)
+    axis.set_ylim(0.4,0.6)
+    yticks = np.array(xrange(4, 7)) * 0.1
+    top_n_experiments = np.arange(1, num_experiments + 1)
+    print top_n_experiments
+    plot(num_experiments, markers, axis, stat, top_n_experiments, "Jaccard Similarity of Sets", yticks)
+    put_legend_on_axes(axis, markers, all_experiment_rankings[0], top_n_experiments)
+    #fig.set_size_inches(10,15)
+    fig.subplots_adjust(hspace=0.3)
+    plt.draw()
 
 def rank_experiments(labels):
 	# get centers
@@ -274,42 +293,24 @@ def rank_experiments(labels):
 	return res
 
 if __name__ == '__main__':
-	plt.ion()
-	c = pymongo.Connection()
-	db = c.tc_storage
-	coll = db.writingsamplestest
-    # generate an immutable, ordered tuple of summary ids to be the reference for generating scores for each of the experiments
-	summary_ids = tuple(coll.distinct('sample'))
-		
-	combine_functions = ['max','mean','min']
-	metrics = ['uni','ro','cos']
-	experiments = dict.fromkeys(combine_functions)
-	stat_names = ['pearson','spearman','kendallstau','jaccard','scu_ratio']
-	# evaluate results for dummy data to generate labels
-	human_scus,human_scores,human_rankings,human_ordinals = get_human_attr(summary_ids)
-	labels = [(m,c,t) for (score,c,m,t) in stat_sort(get_exp_attr(metrics,experiments,summary_ids,human_scus,human_scores,human_rankings,human_ordinals)[0])]
-#cross_val(summary_ids,stat_names,metrics,experiments,labels)
-#get_all_confint(labels)
-	all_experiment_rankings = rank_experiments(labels)
-	fig,axes = plt.subplots(nrows=3, ncols=1, sharex=True)
-	n = 10
-	axes[2,].set_xticklabels(np.arange(0,n+2,2),family='times new roman')
-	fontprop = FontProperties(family='times new roman',size='large')
-	axes[2,].set_xlabel('experiment ranking',fontproperties=fontprop)
-	axes[0,].set_xlim(0,n+1)
-	axes[0,].set_ylim(0.8,1)
-	axes[1,].set_ylim(0.8,1)
-	axes[2,].set_ylim(0.7,1)
-	#axes[3,].set_ylim(0.4,0.6)
-	yticks = {0:np.array(xrange(8,11))*0.1,1:np.array(xrange(8,11))*0.1,2:np.array(xrange(7,11))*0.1,3:np.array(xrange(4,7))*0.1}
-	x = np.arange(1,n+1)
-	i = 0
-	plot_titles = ["(a) Pearson", "(b) Spearman", "(c) Kendall's tau"]
-        markers = {'cos':'x', 'ro':'<', 'uni':'s'}
-        for stat in all_experiment_rankings[:-1]:
-            plot(n, markers, axes[i,], stat, x, plot_titles[i], yticks[i])
-            i+=1
-	put_legend_on_axes(axes[0,], markers, all_experiment_rankings[0], x)
-	fig.set_size_inches(10,15)
-	fig.subplots_adjust(hspace=0.3)
-	plt.draw()
+    plt.ion()
+    c = pymongo.Connection()
+    db = c.tc_storage
+    coll = db.writingsamplestest
+    # generate immutable tuple of summary ids as reference for generating scores for each experiment
+    summary_ids = tuple(coll.distinct('sample'))	
+    combine_functions = ['max','mean','min']
+    metrics = ['uni','ro','cos']
+    experiments = dict.fromkeys(combine_functions)
+    stat_names = ['pearson','spearman','kendallstau','jaccard','scu_ratio']
+    # evaluate results for dummy data to generate labels
+    human_scus,human_scores,human_rankings,human_ordinals = get_human_attr(summary_ids)
+    labels = [(m,c,t) for (score,c,m,t) in stat_sort(get_exp_attr(metrics,experiments,summary_ids,human_scus,human_scores,human_rankings,human_ordinals)[0])]
+    #cross_val(summary_ids,stat_names,metrics,experiments,labels)
+    #get_all_confint(labels)
+    all_experiment_rankings = rank_experiments(labels)
+    num_experiments = 10
+    markers = {'cos':'x', 'ro':'<', 'uni':'s'}
+    #draw_correlation_coeff_confidence_intervals(num_experiments, markers)
+    stat = all_experiment_rankings[-1]
+    draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat)
