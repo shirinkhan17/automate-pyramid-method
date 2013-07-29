@@ -1,5 +1,5 @@
-Automating the pyramid method of summarization evaluation
-============================
+Automated Pyramid Scoring of Summaries Using Distributional Semantics
+==============================
 
 The pyramid method of summarization evaluation [(Passonneau, 2004)](http://acl.ldc.upenn.edu/hlt-naacl2004/main/pdf/91_Paper.pdf) uses the distribution of content over a pool of human summaries to identify summarization content units (SCUs) that are assigned weights based on their frequency in the corpus of summaries.
 
