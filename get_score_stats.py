@@ -1,13 +1,14 @@
 import pymongo
 import scipy
-from scipy.stats import pearsonr,spearmanr,kendalltau
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
 import itertools
 import collections
 import operator
 import csv
+
+from matplotlib.font_manager import FontProperties
+from scipy.stats import pearsonr,spearmanr,kendalltau
 
 class Experiment:
     def __init__(self, 

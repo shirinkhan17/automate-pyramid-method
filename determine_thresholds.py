@@ -1,15 +1,15 @@
 import pymongo
 import sys
 import numpy as np
-from scipy import stats
-from matplotlib import pyplot as plt
 import itertools
-from decimal import *
 import collections
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
+from scipy import stats
+from matplotlib import pyplot as plt
+from decimal import Decimal 
 
 def ppf_discrete(corrects,a):
     mass_densities = np.array(np.bincount(corrects),dtype=float)/np.bincount(corrects).sum()
@@ -29,8 +29,6 @@ def ppf_kernelest(est,corrects,a):
     for score in corrects:
         if est.integrate_box_1d(0,score)>=a:
             greaterthan.append(score)
-    #print 'min(score for score in corrects if (est.integrate_box_1d(min(corrects),score)/A)>=a)'
-    #print min(score for score in corrects if (est.integrate_box_1d(min(corrects),score)/A)>=a)
     return min(greaterthan)
     
 def get_gaussian_kde(corrects):
@@ -69,14 +67,11 @@ def plot_compare(results):
             label.set_fontproperties(tickfont)
         title = ax[i].set_title(combine)
         title.set_fontproperties(titlefont)
-	#legend = ax[i].legend(['unigram overlap','ratcliff obershelp','latent vector cosine similarity','latent vectors, augmented corpus'],prop={'family':'times new roman','size':8},labelspacing = 0.3)
         ax[i].set_ylabel('density',fontproperties=labelfont)
         i+=1
     ax[i-1].set_xlabel('pairwise similarity score',fontproperties=labelfont)
     legend = fig.legend([L1,L2,L3],['Unigram Overlap','Ratcliff/Oberschelp','Latent Vector Cosine Similarity'],prop={'family':'times new roman','size':8},labelspacing = 0.3,loc=(0.22,0.86))
-    fig.savefig('thresholds_with_labels7')
-    #plt.hist(corrects,bins=1+np.log2(corrects.size),normed=1)
-    # evaluate() evaluates the pdf on each of the points passed to it
+    fig.savefig('thresholds_with_labels')
 
 def prettyprint(combine,metric,thresholds):
     with open('all_thresholds','a') as f:
@@ -94,7 +89,6 @@ if __name__ == '__main__':
     for key in results:
         results[key] = dict.fromkeys(metrics)
     for combine,metric in itertools.product(combine_functions,metrics):
-        print combine, metric
         if metric in ['control','augmented']:
             corrects = np.array([i['scores'][combine]['cos'][metric] for i in db.correct_all4.find()])
         else:
@@ -102,5 +96,4 @@ if __name__ == '__main__':
         kernel_dens_est,thresholds = get_gaussian_kde(corrects)
         prettyprint(combine,metric,thresholds)
         results[combine][metric] = kernel_dens_est
-    plot_compare(results)
-    
+    plot_compare(results)    

@@ -1,8 +1,10 @@
 """Usage: python dynamic_programming.py [sim_metric] [combine] [threshold]"""
+import argparse
 import pymongo
-from data_storage import Summary
 import cPickle as pickle
 import sys
+
+from data_storage import Summary
 from joblib import Parallel,delayed
 
 def memo(f):
