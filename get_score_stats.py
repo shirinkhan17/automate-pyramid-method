@@ -187,7 +187,7 @@ def compute_confint(mean, std):
     # assumes gaussian distribution and returns (a,b) = (percent point function at 0.025, percent point function at 0.975)
     return scipy.stats.norm.interval(alpha=0.95, loc=mean, scale=std)
 
-def plot(n, markers, axes, stat, x, name, yticks):
+def plot(n, markers, axes, stat, x, name, ylabel, yticks):
     centers = [center for center,metric,combine,thres,interval in stat][:n]
     metrics = [metric for center,metric,combine,thres,interval in stat][:n]
     yerrs = [(interval[1]-interval[0])/float(2) for center,metric,combine,thres,interval in stat][:n]
@@ -196,31 +196,38 @@ def plot(n, markers, axes, stat, x, name, yticks):
     title_fontprop = FontProperties(family='times new roman', size='medium')
     axes.set_title(name, fontproperties=title_fontprop)
     fontprop = FontProperties(family='times new roman', size='large')
-    axes.set_ylabel('parameter score', fontproperties=fontprop)
+    axes.set_ylabel(ylabel, fontproperties=fontprop)
     axes.set_yticks(yticks)
     axes.set_yticklabels([str(tick) for tick in yticks], family='times new roman')
 	
-def put_legend_on_axes(axes, markers, stat, x):
-    centers = [center for center, metric, combine, thres, interval in stat][:n]
-    metrics = [metric for center, metric, combine, thres, interval in stat][:n]
-    yerrs = [(interval[1] - interval[0]) / float(2) for center, metric, combine, thres, interval in stat][:n]
-    mfc = 'black'
+def put_legend_on_axes(axes, markers, data, num_experiments):
+    centers = [center for center, metric, combine, thres, interval in data][:num_experiments]
+    metrics = [metric for center, metric, combine, thres, interval in data][:num_experiments]
+    yerrs = [(interval[1] - interval[0]) / float(2) for center, metric, combine, thres, interval in data][:num_experiments]
+    marker_color = 'black'
     all_metrics = {'cos':'LVc','ro':'RO','uni':'UNI'}
+    x = np.arange(1, num_experiments + 1)
     for mkey in all_metrics:
-        if list(x[np.where(np.array(metrics)==mkey)]):
-            add_metric_to_legend(axes,markers[mkey],mfc,all_metrics[mkey],x[np.where(np.array(metrics)==mkey)],np.array(centers)[np.where(np.array(metrics)==mkey)],np.array(yerrs)[np.where(np.array(metrics)==mkey)])
-    fontprop = FontProperties(family='times new roman',size='medium')
-    axes.legend(loc='upper center',bbox_to_anchor=(0.5, 1.5),ncol=4,prop=fontprop)
+        if list(x[np.where(np.array(metrics) == mkey)]):
+            add_metric_to_legend(axes, 
+                                 markers[mkey], 
+                                 marker_color, 
+                                 all_metrics[mkey], 
+                                 x[np.where(np.array(metrics) == mkey)], 
+                                 np.array(centers)[np.where(np.array(metrics) == mkey)], 
+                                 np.array(yerrs)[np.where(np.array(metrics) == mkey)])
+    fontprop = FontProperties(family='times new roman', size='medium')
+    axes.legend(loc='upper center', bbox_to_anchor=(0.5, 1.5), ncol=4, prop=fontprop)
 
 def add_metric_to_legend(axes,marker,mfc,metric,x_data,y_data,y_err_data):
     points = [i for i in itertools.izip(x_data,y_data,y_err_data)]
     axes.errorbar(points[0][0],points[0][1],points[0][2],marker=marker,mec='black',mfc=mfc,ecolor='black',label=metric)
 
-def draw_correlation_coeff_confidence_intervals(num_experiments, markers):
+def draw_correlation_coeff_confidence_intervals(num_experiments, markers, data):
     fig, axes = plt.subplots(nrows=3, ncols=1, sharex=True)
     axes[2,].set_xticklabels(np.arange(0, num_experiments + 2, 2), family = 'times new roman')
     fontprop = FontProperties(family='times new roman', size='large')
-    axes[2,].set_xlabel('experiment ranking', fontproperties = fontprop)
+    axes[2,].set_xlabel('Experiment ranking', fontproperties = fontprop)
     axes[0,].set_xlim(0, num_experiments + 1)
     axes[0,].set_ylim(0.8, 1)
     axes[1,].set_ylim(0.8, 1)
@@ -229,27 +236,26 @@ def draw_correlation_coeff_confidence_intervals(num_experiments, markers):
     top_n_experiments = np.arange(1, num_experiments + 1)
     i = 0
     plot_titles = ["(a) Pearson", "(b) Spearman", "(c) Kendall's tau"]
-    for stat in all_experiment_rankings[:-1]:
-        plot(num_experiments, markers, axes[i,], stat, top_n_experiments, plot_titles[i], yticks[i])
+    for stat in data:
+        plot(num_experiments, markers, axes[i,], stat, top_n_experiments, plot_titles[i], "Correlation", yticks[i])
         i += 1
-    put_legend_on_axes(axes[0,], markers, all_experiment_rankings[0], top_n_experiments)
+    put_legend_on_axes(axes[0,], markers, all_experiment_rankings[0], num_experiments)
     fig.set_size_inches(10,15)
     fig.subplots_adjust(hspace=0.3)
     plt.draw() 
 
-def draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat):
+def draw_scu_set_similarity_confidence_intervals(num_experiments, markers, data):
     fig, axis = plt.subplots(nrows=1, ncols=1)
     axis.set_xticklabels(np.arange(0, num_experiments + 2, 2), family = 'times new roman')
     fontprop = FontProperties(family='times new roman', size='large')
-    axis.set_xlabel('experiment ranking', fontproperties = fontprop)
+    axis.set_xlabel('Experiment ranking', fontproperties = fontprop)
     axis.set_xlim(0, num_experiments + 1)
-    axis.set_ylim(0.4,0.6)
+    axis.set_ylim(0.3, 0.5)
     yticks = np.array(xrange(4, 7)) * 0.1
     top_n_experiments = np.arange(1, num_experiments + 1)
-    print top_n_experiments
-    plot(num_experiments, markers, axis, stat, top_n_experiments, "Jaccard Similarity of Sets", yticks)
-    put_legend_on_axes(axis, markers, all_experiment_rankings[0], top_n_experiments)
-    #fig.set_size_inches(10,15)
+    plot(num_experiments, markers, axis, data, top_n_experiments, "Jaccard Similarity of Sets", "Set similarity", yticks)
+    put_legend_on_axes(axis, markers, data, num_experiments)
+    fig.set_size_inches(10, 5)
     fig.subplots_adjust(hspace=0.3)
     plt.draw()
 
@@ -311,6 +317,6 @@ if __name__ == '__main__':
     all_experiment_rankings = rank_experiments(labels)
     num_experiments = 10
     markers = {'cos':'x', 'ro':'<', 'uni':'s'}
-    #draw_correlation_coeff_confidence_intervals(num_experiments, markers)
+    #draw_correlation_coeff_confidence_intervals(num_experiments, markers, all_experiment_rankings[:-1])
     stat = all_experiment_rankings[-1]
     draw_scu_set_similarity_confidence_intervals(num_experiments, markers, stat)
