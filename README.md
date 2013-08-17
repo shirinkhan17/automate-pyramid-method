@@ -1,9 +1,11 @@
 Automated Pyramid Scoring of Summaries Using Distributional Semantics
 ==============================
 
-The pyramid method of summarization evaluation [(Passonneau, 2004)](http://acl.ldc.upenn.edu/hlt-naacl2004/main/pdf/91_Paper.pdf) uses the distribution of content over a pool of human summaries to identify summarization content units (SCUs) that are assigned weights based on their frequency in the corpus of summaries.
+This study was presented as a [short paper](http://aclweb.org/anthology/P/P13/P13-2026.pdf) and [poster](http://www1.ccls.columbia.edu/~beck/pubs/2458_PassonneauEtAl.pdf) at the 2013 Annual Meeting of the Association for Computational Linguistics.
 
-This study extended the dynamic programming approach used in [(Harnly, 2005)](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.59.8121) to automate summarization evaluation with the pyramid method. To test another method of representing the semantic profile of content units, we incorporated a latent variable model [(Guo and Diab, 2012)](https://www.aclweb.org/anthology-new/P/P12/P12-1091v2.pdf) in the dynamic programming algorithm and found excellent performance for matching the absolute scores of individual summaries and improved performance for identifying the content units included in each summary.
+The pyramid method of summarization evaluation [(Passonneau, 2004)](http://acl.ldc.upenn.edu/hlt-naacl2004/main/pdf/91_Paper.pdf) uses the distribution of content over a pool of human-generated summaries to identify summarization content units (SCUs) that are assigned weights based on their frequency in this corpus of model summaries.
+
+We extended the dynamic programming approach used in [(Harnly, 2005)](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.59.8121) to automate summarization evaluation with the pyramid method. To test another method of representing the semantic profile of content units, we incorporated a latent variable model [(Guo and Diab, 2012)](https://www.aclweb.org/anthology-new/P/P12/P12-1091v2.pdf) in the dynamic programming algorithm and found excellent performance for matching the absolute scores of individual summaries and improved performance for identifying the content units included in each summary.
 
 These scripts are the key components of our implementation of the work described in the paper.
 
